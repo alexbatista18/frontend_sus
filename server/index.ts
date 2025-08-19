@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { networkInterfaces } from "os";
 
 const app = express();
 app.use(express.json());
@@ -56,16 +57,41 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const port = parseInt(process.env.BACKEND_PORT || '5000', 10);
+  const host = process.env.SERVER_HOST || '0.0.0.0';
+  
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host,
   }, () => {
-    log(`serving on port ${port}`);
+    const domain = process.env.DOMAIN;
+    const localAddress = `http://localhost:${port}`;
+    
+    // Get local network IP
+    const nets = networkInterfaces();
+    let localNetworkIP = '';
+    
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name]!) {
+        if (net.family === 'IPv4' && !net.internal) {
+          localNetworkIP = net.address;
+          break;
+        }
+      }
+      if (localNetworkIP) break;
+    }
+    
+    const networkAddress = localNetworkIP ? `http://${localNetworkIP}:${port}` : '';
+    
+    log(`🚀 Servidor rodando em:`);
+    if (domain) {
+      log(`   🌐 Domínio: ${domain}`);
+    }
+    log(`   🏠 Local: ${localAddress}`);
+    if (networkAddress) {
+      log(`   🌍 Rede: ${networkAddress}`);
+    }
+    log(`   📊 Porta: ${port}`);
+    log(`   🔧 Ambiente: ${process.env.NODE_ENV || 'development'}`);
   });
 })();
