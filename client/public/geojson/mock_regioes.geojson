@@ -1,0 +1,37 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "regiao_geografica": "SUDESTE", "name": "Sudeste" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-50, -20],
+            [-45, -20],
+            [-45, -25],
+            [-50, -25],
+            [-50, -20]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "regiao_geografica": "NORDESTE", "name": "Nordeste" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-40, -10],
+            [-35, -10],
+            [-35, -15],
+            [-40, -15],
+            [-40, -10]
+          ]
+        ]
+      }
+    }
+  ]
+}

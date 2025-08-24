@@ -1,77 +1,130 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, BarChart3, Download, HelpCircle, RefreshCw } from "lucide-react";
-import { type GeographicLevel, type Parameter, type DataSummary, geographicLevels, parameters } from "@shared/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Settings, HelpCircle } from "lucide-react";
 
 interface ControlPanelProps {
-  selectedLevel: GeographicLevel;
-  selectedParameter: Parameter;
+  selectedLevel: string;
+  selectedParameter: string;
   selectedMetric: string;
-  onFiltersChange: (level: GeographicLevel, parameter: Parameter, metric: string) => void;
+  onFiltersChange: (level: string, parameter: string, metric: string) => void;
 }
 
-interface MetricOption {
-  value: string;
-  label: string;
-}
+// Objeto de filtros conforme briefing
+const dadosFiltros: Record<string, string[]> = {
+  "Bactérias Heterotróficas (UFC/mL)": [
+    "Número de amostras analisadas",
+    "Número de resultados < 500 UFC/mL",
+    "Número de resultados > 500 UFC/mL",
+  ],
+  "Cloro Residual Combinado (mg/L)": [
+    "Número de amostras analisadas",
+    "Número de dados < 2,0 mg/L",
+    "Número de dados >= 2,0 mg/L e <= 4,0 mg/L",
+    "Número de dados > 4,0 mg/L",
+    "Percentil 95",
+  ],
+  "Cloro Residual Livre (mg/L)": [
+    "Número de amostras analisadas",
+    "Número de dados < 0,2 mg/L",
+    "Número de dados >= 0,2 mg/L e <= 2,0mg/L",
+    "Número de dados > 2,0 mg/L e <= 5,0mg/L",
+    "Número de dados >= 2,0 mg/L e <= 5,0mg/L",
+    "Número de dados > 5,0 mg/L",
+    "Percentil 95",
+  ],
+  "Coliformes totais": [
+    "N de amostras com ausência de coliformes totais",
+    "N de amostras com presença de coliformes totais",
+    "Número de amostras analisadas",
+  ],
+  "Cor (uH)": [
+    "Número de amostras analisadas",
+    "Número de dados <= 15,0 uH",
+    "Número de dados > 15,0 uH",
+    "Percentil 95",
+  ],
+  "Dióxido de Cloro": [
+    "Número de amostras analisadas",
+    "Número de dados < 0,2 mg/L",
+    "Número de dados >= 0,2 mg/L e <= 1,0 mg/L",
+    "Número de dados > 1,0 mg/L",
+    "Percentil 95",
+  ],
+  "Escherichia coli": [
+    "N de amostras com ausência para Escherichia coli",
+    "N de amostras com presença para Escherichia coli",
+    "Número de amostras analisadas",
+  ],
+  "Fluoreto (mg/L)": [
+    "Média das temperaturas máximas diárias(°C)",
+    "Número de amostras analisadas",
+    "Número de dados <",
+    "Número de dados >",
+    "Número de dados >=",
+    "Número de dados <= 1,5 mg/L",
+    "Número de dados > 1,5 mg/L",
+    "Percentil 95",
+  ],
+  pH: [
+    "Número de amostras analisadas",
+    "Número de dados < 6,0",
+    "Número de dados >= 6,0 e <= 9,0",
+    "Número de dados > 9,0",
+  ],
+  "Turbidez (uT)": [
+    "Número de amostras analisadas",
+    "Número de dados <= 0.1 uT",
+    "Número de dados > 0.1 uT e <= 0.3 uT",
+    "Número de dados <= 0,3 uT",
+    "Número de dados > 0.3 uT",
+    "Número de dados > 0,3 uT e <= 0,5 uT",
+    "Número de dados > 0.3 uT e <= 1.0 uT",
+    "Número de dados > 0,5 uT e <= 1,0 uT",
+    "Número de dados <= 1.0 uT",
+    "Número de dados > 1,0 uT",
+    "Número de dados > 1.0 uT e <= 0.5 uT",
+    "Número de dados > 1.0 uT e <= 2.0 uT",
+    "Número de dados > 2.0 uT",
+    "Número de dados <= 5,0 uT",
+    "Número de dados > 5,0 uT",
+    "Percentil 95",
+  ],
+};
 
-export default function ControlPanel({ selectedLevel, selectedParameter, selectedMetric, onFiltersChange }: ControlPanelProps) {
+export default function ControlPanel({
+  selectedLevel,
+  selectedParameter,
+  selectedMetric,
+  onFiltersChange,
+}: ControlPanelProps) {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const geographicLevels = [
+    { value: "regiao_geografica", label: "Região" },
+    { value: "uf", label: "Estado" },
+    { value: "municipio", label: "Município" },
+  ];
+  const parametros = Object.keys(dadosFiltros);
+  const metricas = dadosFiltros[selectedParameter] || [];
 
-  // Fetch metric options based on selected parameter
-  const { data: metricOptions = [] } = useQuery({
-    queryKey: ['/api/metric-options', { parameter: selectedParameter }],
-    queryFn: async () => {
-      const params = new URLSearchParams({ parameter: selectedParameter });
-      const response = await fetch(`/api/metric-options?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch metric options');
-      return response.json() as Promise<MetricOption[]>;
-    }
-  });
-
-  // Fetch data summary
-  const { data: dataSummary } = useQuery({
-    queryKey: ['/api/data-summary'],
-    queryFn: async () => {
-      const response = await fetch('/api/data-summary');
-      if (!response.ok) throw new Error('Failed to fetch data summary');
-      return response.json() as Promise<DataSummary>;
-    }
-  });
-
-  const handleLevelChange = (level: GeographicLevel) => {
+  const handleLevelChange = (level: string) => {
     onFiltersChange(level, selectedParameter, selectedMetric);
   };
 
-  const handleParameterChange = (parameter: Parameter) => {
-    // Reset metric to first option when parameter changes
-    const firstMetric = metricOptions[0]?.value || 'amostras_analisadas';
+  const handleParameterChange = (parameter: string) => {
+    const firstMetric =
+      (dadosFiltros[parameter] && dadosFiltros[parameter][0]) || "";
     onFiltersChange(selectedLevel, parameter, firstMetric);
   };
 
   const handleMetricChange = (metric: string) => {
     onFiltersChange(selectedLevel, selectedParameter, metric);
-  };
-
-  const handleApplyFilters = () => {
-    // Force refresh by calling the handler again
-    onFiltersChange(selectedLevel, selectedParameter, selectedMetric);
-  };
-
-  const getParameterLabel = (param: Parameter) => {
-    return param === 'turbidez' ? 'Turbidez (uT)' : 'pH';
-  };
-
-  const getLevelLabel = (level: GeographicLevel) => {
-    const labels = {
-      'região': 'Região',
-      'estado': 'Estado',
-      'município': 'Município'
-    };
-    return labels[level];
   };
 
   return (
@@ -83,9 +136,11 @@ export default function ControlPanel({ selectedLevel, selectedParameter, selecte
             <Settings className="w-5 h-5 text-isd-orange mr-2" />
             Filtros de Visualização
           </h2>
-          <p className="text-sm text-gray-600 mt-1">Configure os parâmetros de análise</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Configure os parâmetros de análise
+          </p>
         </div>
-        
+
         {/* Geographic Level Filter */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -94,41 +149,44 @@ export default function ControlPanel({ selectedLevel, selectedParameter, selecte
           <div className="grid grid-cols-1 gap-2">
             {geographicLevels.map((level) => (
               <Button
-                key={level}
-                onClick={() => handleLevelChange(level)}
-                variant={selectedLevel === level ? "default" : "outline"}
+                key={level.value}
+                onClick={() => handleLevelChange(level.value)}
+                variant={selectedLevel === level.value ? "default" : "outline"}
                 className={`justify-start h-12 transition-all ${
-                  selectedLevel === level 
-                    ? 'bg-isd-teal hover:bg-isd-teal/90 border-isd-teal text-white shadow-md' 
-                    : 'border-gray-200 text-gray-700 hover:border-isd-light-teal hover:bg-gray-50'
+                  selectedLevel === level.value
+                    ? "bg-isd-teal hover:bg-isd-teal/90 border-isd-teal text-white shadow-md"
+                    : "border-gray-200 text-gray-700 hover:border-isd-light-teal hover:bg-gray-50"
                 }`}
               >
-                {getLevelLabel(level)}
+                {level.label}
               </Button>
             ))}
           </div>
         </div>
-        
+
         {/* Parameter Selection */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Parâmetro
           </label>
-          <Select value={selectedParameter} onValueChange={handleParameterChange}>
+          <Select
+            value={selectedParameter}
+            onValueChange={handleParameterChange}
+          >
             <SelectTrigger className="w-full h-12 border-gray-300 focus:ring-isd-teal focus:border-isd-teal">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {parameters.map((param) => (
+              {parametros.map((param) => (
                 <SelectItem key={param} value={param}>
-                  {getParameterLabel(param)}
+                  {param}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        
-        {/* Metric Selection */}
+
+        {/* Métrica Selection */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Métrica
@@ -138,96 +196,39 @@ export default function ControlPanel({ selectedLevel, selectedParameter, selecte
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {metricOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+              {metricas.map((metrica) => (
+                <SelectItem key={metrica} value={metrica}>
+                  {metrica}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        
-        {/* Apply Filters Button */}
-        <div className="mb-6">
-          <Button 
-            onClick={handleApplyFilters}
-            className="w-full bg-isd-orange hover:bg-orange-600 text-white font-medium h-12 shadow-md transition-all"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Atualizar Mapa
-          </Button>
-        </div>
-        
-        {/* Data Summary */}
-        {dataSummary && (
-          <Card className="mb-6 border-gray-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center text-gray-800">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Resumo dos Dados
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total de registros:</span>
-                <span className="font-medium">{dataSummary.totalRecords}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Última atualização:</span>
-                <span className="font-medium">{dataSummary.lastUpdate}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Cobertura:</span>
-                <span className="font-medium">{dataSummary.coverage}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Export Options */}
-        <div className="border-t border-gray-200 pt-6">
-          <h3 className="font-medium text-gray-800 mb-3 flex items-center">
-            <Download className="w-4 h-4 mr-2" />
-            Exportar Dados
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="text-sm hover:bg-gray-50 border-gray-200"
-            >
-              CSV
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="text-sm hover:bg-gray-50 border-gray-200"
-            >
-              JSON
-            </Button>
+
+        {/* Apply Filters Button e Export/Resumo removidos para evitar erros. */}
+        <span
+          className="flex items-center mt-4 cursor-pointer select-none"
+          onClick={() => setIsHelpOpen((v) => !v)}
+        >
+          <HelpCircle className="w-4 h-4 mr-2" />
+          Ajuda
+        </span>
+        {isHelpOpen && (
+          <div className="mt-3 text-sm text-gray-600 space-y-2 bg-gray-50 p-3 rounded-md">
+            <p>
+              <strong>Nível Geográfico:</strong> Escolha como visualizar os
+              dados (por região, estado ou município).
+            </p>
+            <p>
+              <strong>Parâmetro:</strong> Selecione qual aspecto da qualidade da
+              água analisar.
+            </p>
+            <p>
+              <strong>Métrica:</strong> Defina como os dados serão calculados e
+              apresentados.
+            </p>
           </div>
-        </div>
-        
-        {/* Help Section */}
-        <div className="border-t border-gray-200 pt-6 mt-6">
-          <Button
-            variant="ghost"
-            onClick={() => setIsHelpOpen(!isHelpOpen)}
-            className="w-full justify-between p-0 h-auto text-sm font-medium text-gray-700 hover:text-isd-teal"
-          >
-            <span className="flex items-center">
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Ajuda
-            </span>
-          </Button>
-          {isHelpOpen && (
-            <div className="mt-3 text-sm text-gray-600 space-y-2 bg-gray-50 p-3 rounded-md">
-              <p><strong>Nível Geográfico:</strong> Escolha como visualizar os dados (por região, estado ou município).</p>
-              <p><strong>Parâmetro:</strong> Selecione qual aspecto da qualidade da água analisar.</p>
-              <p><strong>Métrica:</strong> Defina como os dados serão calculados e apresentados.</p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

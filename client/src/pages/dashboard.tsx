@@ -1,20 +1,17 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import Header from "@/components/header";
 import MapContainer from "@/components/map-container";
 import ControlPanel from "@/components/control-panel";
-import { type GeographicLevel, type Parameter } from "@shared/schema";
-
 export default function Dashboard() {
-  const [selectedLevel, setSelectedLevel] = useState<GeographicLevel>("região");
+  const [selectedLevel, setSelectedLevel] =
+    useState<string>("regiao_geografica");
   const [selectedParameter, setSelectedParameter] =
-    useState<Parameter>("turbidez");
-  const [selectedMetric, setSelectedMetric] = useState<string>(
-    "amostras_analisadas"
-  );
+    useState<string>("Turbidez (uT)");
+  const [selectedMetric, setSelectedMetric] = useState<string>("");
 
   const handleFiltersChange = (
-    level: GeographicLevel,
-    parameter: Parameter,
+    level: string,
+    parameter: string,
     metric: string
   ) => {
     setSelectedLevel(level);
@@ -26,7 +23,11 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="flex h-[calc(100vh-80px)]">
-        <MapContainer />
+        <MapContainer
+          geographicLevel={selectedLevel}
+          parameter={selectedParameter}
+          metric={selectedMetric}
+        />
         <ControlPanel
           selectedLevel={selectedLevel}
           selectedParameter={selectedParameter}
