@@ -113,13 +113,19 @@ export default function ControlPanel({
   const parametros = Object.keys(dadosFiltros);
   const metricas = dadosFiltros[selectedParameter] || [];
 
-  const handleLevelChange = (level: string) => {
+  // Handler para bloquear seleção
+  const bloqueados = ["regiao_geografica", "municipio"];
+  const handleLevelChange = (level: string, e?: React.MouseEvent) => {
+    if (bloqueados.includes(level)) {
+      e?.preventDefault();
+      return;
+    }
     onFiltersChange(level, selectedParameter, selectedMetric);
   };
 
   const handleParameterChange = (parameter: string) => {
-    const firstMetric =
-      (dadosFiltros[parameter] && dadosFiltros[parameter][0]) || "";
+    const firstMetric = (dadosFiltros[parameter] && dadosFiltros[parameter][0]) || "";
+    // Atualiza o parâmetro e já seta a métrica para a primeira da lista
     onFiltersChange(selectedLevel, parameter, firstMetric);
   };
 
@@ -148,18 +154,54 @@ export default function ControlPanel({
           </label>
           <div className="grid grid-cols-1 gap-2">
             {geographicLevels.map((level) => (
-              <Button
-                key={level.value}
-                onClick={() => handleLevelChange(level.value)}
-                variant={selectedLevel === level.value ? "default" : "outline"}
-                className={`justify-start h-12 transition-all ${
-                  selectedLevel === level.value
-                    ? "bg-isd-teal hover:bg-isd-teal/90 border-isd-teal text-white shadow-md"
-                    : "border-gray-200 text-gray-700 hover:border-isd-light-teal hover:bg-gray-50"
-                }`}
-              >
-                {level.label}
-              </Button>
+              <div key={level.value} style={{ position: "relative" }}>
+                <Button
+                  onClick={(e) => handleLevelChange(level.value, e)}
+                  variant={
+                    selectedLevel === level.value ? "default" : "outline"
+                  }
+                  className={`justify-start h-12 transition-all w-full ${
+                    selectedLevel === level.value
+                      ? "bg-isd-teal hover:bg-isd-teal/90 border-isd-teal text-white shadow-md"
+                      : "border-gray-200 text-gray-700 hover:border-isd-light-teal hover:bg-gray-50"
+                  }`}
+                  disabled={bloqueados.includes(level.value)}
+                  style={{
+                    pointerEvents: bloqueados.includes(level.value)
+                      ? "auto"
+                      : undefined,
+                  }}
+                  onMouseOver={(e) => {
+                    if (bloqueados.includes(level.value)) {
+                      const tooltip = document.createElement("div");
+                      tooltip.innerText = "Em desenvolvimento";
+                      tooltip.style.position = "absolute";
+                      tooltip.style.top = "-28px";
+                      tooltip.style.left = "0";
+                      tooltip.style.background = "#222";
+                      tooltip.style.color = "#fff";
+                      tooltip.style.padding = "2px 8px";
+                      tooltip.style.borderRadius = "4px";
+                      tooltip.style.fontSize = "12px";
+                      tooltip.style.zIndex = "9999";
+                      tooltip.className = "custom-tooltip";
+                      (
+                        e.currentTarget.parentElement as HTMLElement
+                      ).appendChild(tooltip);
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (bloqueados.includes(level.value)) {
+                      const parent = e.currentTarget
+                        .parentElement as HTMLElement;
+                      const tooltip = parent.querySelector(".custom-tooltip");
+                      if (tooltip) parent.removeChild(tooltip);
+                    }
+                  }}
+                >
+                  {level.label}
+                </Button>
+              </div>
             ))}
           </div>
         </div>

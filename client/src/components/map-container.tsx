@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { MapContainer as LeafletMap, TileLayer, GeoJSON } from "react-leaflet";
 import { useCallback } from "react";
@@ -25,17 +25,55 @@ export default function MapContainer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [geoJson, setGeoJson] = useState<any>(null);
-  // Carregar GeoJSON de regiões (mock)
+  // Ref para o GeoJSON
+  const geoJsonRef = useRef<any>(null);
+  // Carregar GeoJSON conforme o nível selecionado
   useEffect(() => {
-    if (geographicLevel === "regiao_geografica") {
-      fetch("/geojson/mock_regioes.geojson")
+    if (geographicLevel === "uf") {
+      fetch("/geojson/geojson_estados.json")
         .then((res) => res.json())
-        .then(setGeoJson)
-        .catch(() => setGeoJson(null));
+        .then((data) => {
+          console.log("GeoJSON ESTADOS carregado:", data);
+          setGeoJson(data);
+        })
+        .catch((err) => {
+          console.error("Erro ao carregar GeoJSON dos estados:", err);
+          setGeoJson(null);
+        });
     } else {
-      setGeoJson(null); // futuro: carregar outros níveis
+      setGeoJson(null); // Não desenha quadrados de regiões
     }
   }, [geographicLevel]);
+
+  // Atualizar tooltips quando apiData mudar
+  useEffect(() => {
+    if (!geoJsonRef.current) return;
+    const layerGroup = geoJsonRef.current;
+    if (!layerGroup || !layerGroup.getLayers) return;
+    layerGroup.getLayers().forEach((layer: any) => {
+      const feature = layer.feature;
+      const code = (feature?.id || "").toUpperCase();
+      const dado = apiData.find((d) => (d.uf || "").toUpperCase() === code);
+      let valor = "N/A";
+      if (
+        dado &&
+        dado.valor !== undefined &&
+        dado.valor !== null &&
+        dado.valor !== ""
+      ) {
+        const num = Number(dado.valor);
+        valor = isNaN(num)
+          ? dado.valor
+          : num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      }
+      let nome = feature?.properties?.name;
+      layer.unbindTooltip();
+      layer.bindTooltip(`<strong>${nome}</strong><br/>Valor: ${valor}`, {
+        sticky: true,
+      });
+    });
+  }, [apiData, geoJson]);
+
   // Função para colorir regiões
   const getColor = useCallback((valor: number, min: number, max: number) => {
     if (isNaN(valor)) return "#ccc";
@@ -96,33 +134,112 @@ export default function MapContainer({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {geoJson && (
+        {geoJson && geoJson.features && geoJson.features.length > 0 && (
           <GeoJSON
+            ref={geoJsonRef}
             data={geoJson}
-            style={(feature) => {
-              const code = feature?.properties?.regiao_geografica;
-              const dado = apiData.find((d) => d.regiao_geografica === code);
+            style={(feature: any) => {
+              const code = (feature?.id || "").toUpperCase();
+              const dado = apiData.find(
+                (d) => (d.uf || "").toUpperCase() === code
+              );
+              const valor = Number(dado?.valor ?? NaN);
+              let color = "#ccc";
+              if (!isNaN(valor) && max > min) {
+                const percent = (valor - min) / (max - min);
+                if (percent <= 0.5) {
+                  // Verde (0,200,80) até Amarelo (255,255,80)
+                  const p = percent * 2;
+                  const r = Math.round(0 + (255 - 0) * p);
+                  const g = Math.round(200 + (255 - 200) * p);
+                  color = `rgb(${r},${g},80)`;
+                } else {
+                  // Amarelo (255,255,80) até Vermelho (255,0,80)
+                  const p = (percent - 0.5) * 2;
+                  const r = 255;
+                  const g = Math.round(255 - 255 * p);
+                  color = `rgb(${r},${g},80)`;
+                }
+              }
               return {
-                fillColor: getColor(dado?.valor ?? 0, min, max),
+                fillColor: color,
                 weight: 2,
                 opacity: 1,
                 color: "#333",
                 fillOpacity: 0.7,
               };
             }}
-            onEachFeature={(feature, layer) => {
-              const code = feature?.properties?.regiao_geografica;
-              const dado = apiData.find((d) => d.regiao_geografica === code);
+            onEachFeature={(feature: any, layer: any) => {
+              const code = (feature?.id || "").toUpperCase();
+              const dado = apiData.find(
+                (d) => (d.uf || "").toUpperCase() === code
+              );
+              let valor = "N/A";
+              if (
+                dado &&
+                dado.valor !== undefined &&
+                dado.valor !== null &&
+                dado.valor !== ""
+              ) {
+                const num = Number(dado.valor);
+                valor = isNaN(num)
+                  ? dado.valor
+                  : num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+              }
+              let nome = feature?.properties?.name;
               layer.bindTooltip(
-                `<strong>${feature?.properties?.name}</strong><br/>Valor: ${
-                  dado?.valor ?? "N/A"
-                }`,
+                `<strong>${nome}</strong><br/>Valor: ${valor}`,
                 { sticky: true }
               );
             }}
           />
         )}
       </LeafletMap>
+      {/* Legenda do mapa de calor */}
+      {apiData.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 24,
+            left: 24,
+            background: "rgba(255,255,255,0.9)",
+            borderRadius: 8,
+            padding: 12,
+            boxShadow: "0 2px 8px #0002",
+            zIndex: 1000,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Legenda</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{
+                width: 24,
+                height: 12,
+                background: `rgb(0,255,80)`,
+                display: "inline-block",
+                border: "1px solid #ccc",
+              }}
+            ></span>
+            <span style={{ fontSize: 12 }}>
+              {min.toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
+              (mín)
+            </span>
+            <span
+              style={{
+                width: 48,
+                height: 12,
+                background: `linear-gradient(to right, rgb(0,255,80), rgb(255,255,80), rgb(255,0,80))`,
+                display: "inline-block",
+                border: "1px solid #ccc",
+              }}
+            ></span>
+            <span style={{ fontSize: 12 }}>
+              {max.toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
+              (máx)
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
