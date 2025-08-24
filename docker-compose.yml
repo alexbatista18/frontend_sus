@@ -1,0 +1,22 @@
+version: "3.8"
+services:
+  frontend_sus:
+    image: dkalexbatista/frontend_sus:1.1
+    restart: always
+    networks:
+      - interna
+      - externa
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=externa"
+        - "traefik.http.routers.frontend_sus.rule=Host(`infosus.innovadta.com.br`)"
+        - "traefik.http.routers.frontend_sus.entrypoints=websecure"
+        - "traefik.http.routers.frontend_sus.tls.certresolver=cf"
+        - "traefik.http.services.frontend_sus.loadbalancer.server.port=80"
+
+networks:
+  interna:
+    external: true
+  externa:
+    external: true

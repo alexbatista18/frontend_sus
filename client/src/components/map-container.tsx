@@ -33,7 +33,6 @@ export default function MapContainer({
       fetch("/geojson/geojson_estados.json")
         .then((res) => res.json())
         .then((data) => {
-          console.log("GeoJSON ESTADOS carregado:", data);
           setGeoJson(data);
         })
         .catch((err) => {
@@ -103,7 +102,7 @@ export default function MapContainer({
       .then((res) => {
         setApiData(res.data);
         // Debug: mostrar dados no console
-        console.log("Dados recebidos da API:", res.data);
+        //console.log("Dados recebidos da API:", res.data);
       })
       .catch((err) => {
         setError("Erro ao buscar dados da API");
